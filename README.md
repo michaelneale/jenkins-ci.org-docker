@@ -1,5 +1,7 @@
 # Official Jenkins Docker image
 
+[![Git](https://app.soluble.cloud/api/v1/public/badges/e905f219-1187-4129-8919-b1d326fb4c70.svg?orgId=451115019187)](https://app.soluble.cloud/repos/details/github.com/michaelneale/jenkins-ci.org-docker?orgId=451115019187)  
+
 The Jenkins Continuous Integration and Delivery server. 
 
 This is a fully functional Jenkins server, based on the Long Term Support release
