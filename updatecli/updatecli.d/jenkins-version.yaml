@@ -1,0 +1,93 @@
+---
+name: Bump default `JENKINS_VERSION` version
+
+scms:
+  default:
+    kind: github
+    spec:
+      user: "{{ .github.user }}"
+      email: "{{ .github.email }}"
+      owner: "{{ .github.owner }}"
+      repository: "{{ .github.repository }}"
+      token: "{{ requiredEnv .github.token }}"
+      username: "{{ .github.username }}"
+      branch: "{{ .github.branch }}"
+
+sources:
+  latestVersion:
+    kind: file
+    name: Get latest Jenkins Core release version
+    spec:
+      file: https://updates.jenkins.io/latestCore.txt
+
+conditions:
+  isDockerImagePublished:
+    name: Check if the docker image has been published
+    kind: dockerimage
+    sourceid: latestVersion
+    spec:
+      image: jenkins/jenkins
+
+targets:
+  updateJenkinsVersionInDockerBake:
+    name: Update default value of JENKINS_VERSION in docker-bake.hcl
+    kind: hcl
+    scmid: default
+    sourceid: latestVersion
+    spec:
+      file: docker-bake.hcl
+      path: variable.JENKINS_VERSION.default
+  updateJenkinsVersionInDockerfiles:
+    name: Update value of JENKINS_VERSION in Dockerfile
+    kind: dockerfile
+    scmid: default
+    sourceid: latestVersion
+    spec:
+      files:
+        - alpine/hotspot/Dockerfile
+        - debian/Dockerfile
+        - rhel/Dockerfile
+        - windows/windowsservercore/hotspot/Dockerfile
+      instruction:
+        keyword: "ARG"
+        matcher: "JENKINS_VERSION"
+  updateJenkinsVersionInGoldenFilesTags:
+    kind: file
+    scmid: default
+    sourceid: latestVersion
+    name: Update value of JENKINS_VERSION in (weekly) golden files for tags
+    spec:
+      files:
+        - tests/golden/expected_tags.txt
+        - tests/golden/expected_tags_latest_weekly.txt
+      matchpattern: :(\d+\.\d+)
+      replacepattern: :{{ source "latestVersion" }}
+  updateJenkinsVersionInGoldenFilesEnvVars:
+    kind: file
+    scmid: default
+    sourceid: latestVersion
+    name: Update value of JENKINS_VERSION in golden file for env vars
+    spec:
+      file: tests/golden/expected_env_vars_except_hostname.txt
+      matchpattern: JENKINS_VERSION=(\d+\.\d+)
+      replacepattern: JENKINS_VERSION={{ source "latestVersion" }}
+  updateJenkinsVersionInMakePs1:
+    name: Update value of $JenkinsVersion in make.ps1
+    kind: file
+    scmid: default
+    sourceid: latestVersion
+    spec:
+      file: make.ps1
+      matchpattern: JenkinsVersion = '(\d+\.\d+)'
+      replacepattern: JenkinsVersion = '{{ source "latestVersion" }}'
+
+actions:
+  default:
+    kind: github/pullrequest
+    title: Bump default `JENKINS_VERSION` to Weekly {{ source "latestVersion" }}
+    scmid: default
+    spec:
+      labels:
+        - dependencies
+        - jenkins-version
+        - skip-changelog

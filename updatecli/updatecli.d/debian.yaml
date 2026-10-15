@@ -1,0 +1,108 @@
+---
+name: Bump Debian version
+
+scms:
+  default:
+    kind: github
+    spec:
+      user: "{{ .github.user }}"
+      email: "{{ .github.email }}"
+      owner: "{{ .github.owner }}"
+      repository: "{{ .github.repository }}"
+      token: "{{ requiredEnv .github.token }}"
+      username: "{{ .github.username }}"
+      branch: "{{ .github.branch }}"
+
+sources:
+  releaseLine:
+    kind: hcl
+    name: "Get the current Debian release line"
+    spec:
+      file: docker-bake.hcl
+      path: variable.DEBIAN_RELEASE_LINE.default
+    transformers:
+      - addsuffix: "-"
+  latestVersion:
+    kind: dockerimage
+    name: "Get the latest Debian version"
+    spec:
+      image: "debian"
+      tagfilter: >-
+        {{ source "releaseLine" }}
+      versionfilter:
+        kind: regex
+        pattern: >-
+          {{ source "releaseLine" }}\d+$
+    transformers:
+      - trimprefix: >-
+          {{ source "releaseLine" }}
+  latestVersionFull:
+    kind: dockerimage
+    name: "Get the latest Debian version including its release line"
+    spec:
+      image: "debian"
+      tagfilter: >-
+        {{ source "releaseLine" }}
+      versionfilter:
+        kind: regex
+        pattern: >-
+          {{ source "releaseLine" }}\d+$
+
+conditions:
+  testDockerfileArg:
+    name: "Does the Dockerfile have an ARG instruction for the Debian version?"
+    kind: dockerfile
+    disablesourceinput: true
+    spec:
+      file: debian/Dockerfile
+      instruction:
+        keyword: "ARG"
+        matcher: "DEBIAN_VERSION"
+  testVersionInBakeFile:
+    name: "Does the bake file have variable DEBIAN_VERSION"
+    kind: file
+    disablesourceinput: true
+    spec:
+      file: docker-bake.hcl
+      matchpattern: "(.*DEBIAN_VERSION.*)"
+  checkArchitecturesAvailability:
+    kind: dockerimage
+    name: Check if container image is available for all architectures
+    sourceid: latestVersionFull
+    spec:
+      image: "debian"
+      architectures:
+        - linux/amd64
+        - linux/arm64
+        - linux/s390x
+        - linux/ppc64le
+
+targets:
+  updateDockerBake:
+    name: "Update the value of the base image DEBIAN_VERSION in the docker-bake.hcl"
+    kind: hcl
+    sourceid: latestVersion
+    spec:
+      file: docker-bake.hcl
+      path: variable.DEBIAN_VERSION.default
+    scmid: default
+  updateDockerfile:
+    name: "Update the value of the base image (ARG DEBIAN_VERSION) in the Dockerfile"
+    kind: dockerfile
+    sourceid: latestVersion
+    spec:
+      file: debian/Dockerfile
+      instruction:
+        keyword: "ARG"
+        matcher: "DEBIAN_VERSION"
+    scmid: default
+actions:
+  default:
+    kind: github/pullrequest
+    scmid: default
+    title: Bump Debian version to {{ source "latestVersion" }}
+    spec:
+      labels:
+        - dependencies
+        - debian
+        - debian-slim

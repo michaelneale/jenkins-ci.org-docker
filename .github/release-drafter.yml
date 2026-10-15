@@ -1,0 +1,14 @@
+# https://github.com/jenkinsci/.github/blob/master/.github/release-drafter.adoc
+
+_extends: github:jenkinsci/.github:/.github/release-drafter.yml
+# We are using 2-digit weekly versioning here
+version-template: $MAJOR.$MINOR
+tag-template: $NEXT_MINOR_VERSION
+name-template: $NEXT_MINOR_VERSION
+template: |
+  <!-- Optional: add a release summary here -->
+  ## 📦 Jenkins Core updates
+
+  * Update to Jenkins $NEXT_MINOR_VERSION ([changelog](https://www.jenkins.io/changelog/$NEXT_MINOR_VERSION))
+
+  $CHANGES
